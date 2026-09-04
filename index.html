@@ -22,6 +22,8 @@
     --away: #c97066;
     --away-dim: #3a2825;
     --paused: #8a93a3;
+    --emergency: #7b8fd6;
+    --emergency-dim: #262c47;
   }
   * { box-sizing: border-box; }
   @media (prefers-reduced-motion: reduce) {
@@ -44,6 +46,11 @@
   .status-pill.break { color: var(--amber); border-color: var(--amber-dim); }
   .status-pill.break .status-dot { background: var(--amber); box-shadow: 0 0 0 4px var(--amber-dim); }
   .status-pill.paused { color: var(--paused); }
+  .status-pill.emergency { color: var(--emergency); border-color: var(--emergency-dim); }
+  .status-pill.emergency .status-dot { background: var(--emergency); box-shadow: 0 0 0 4px var(--emergency-dim); }
+  button.emergency-btn { border-color: var(--emergency-dim); color: var(--emergency); }
+  button.emergency-btn:hover:not(:disabled) { border-color: var(--emergency); }
+  button.emergency-btn.active { background: var(--emergency); border-color: var(--emergency); color: #12152a; }
   .main-grid { display: grid; grid-template-columns: 220px 1fr; gap: 28px; }
   @media (max-width: 560px) { .main-grid { grid-template-columns: 1fr; } }
   .camera-frame { position: relative; width: 220px; height: 220px; border-radius: 16px; overflow: hidden; background: #10131a; border: 2px solid var(--line); transition: border-color 0.3s ease; }
@@ -59,6 +66,7 @@
   .metric-value { font-family: 'Fraunces', serif; font-variant-numeric: tabular-nums; font-size: 2.2rem; font-weight: 500; }
   .metric-value.amber { color: var(--amber); }
   .metric-value.teal { color: var(--teal); }
+  .metric-value.away { color: var(--away); }
   .bank-bar { height: 6px; border-radius: 3px; background: #12161d; overflow: hidden; margin-top: 8px; border: 1px solid var(--line); }
   .bank-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #a97a2e, var(--amber)); transition: width 0.4s ease; }
   .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
@@ -119,6 +127,7 @@
         <button class="primary" id="cameraBtn" disabled>Turn on camera</button>
         <button id="calibBtn" disabled>Calibrate: look at screen</button>
         <button id="breakBtn" disabled>Take a break</button>
+        <button id="emergencyBtn" class="emergency-btn" disabled>Emergency break</button>
       </div>
 
       <div class="calib-row">
@@ -146,7 +155,7 @@
   </div>
 
   <p class="note" id="noteText">
-    Loads a small face-tracking model from the network the first time you open this page (needs internet once, then it's cached). It measures where your nose sits between your eyes and chin — tilt your head down toward your notes and it counts as studying; look up at the screen or step away and it pauses. Calibrate first so it's tuned to your camera angle. Nothing from your camera ever leaves this browser tab.
+    Loads a small face-tracking model from the network the first time you open this page (needs internet once, then it's cached). It measures where your nose sits between your eyes and chin — tilt your head down toward your notes and it counts as studying; look up at the screen or step away and it pauses. Calibrate first so it's tuned to your camera angle. Step away for 10 seconds straight and a break starts automatically from your bank. Stay away or keep looking up for 15 seconds without banked time to spend, and the bank starts going into debt until you get back to studying. Need to go without any of that? Hit emergency break — it pauses everything and costs you nothing. Nothing from your camera ever leaves this browser tab.
   </p>
 </div>
 
@@ -158,6 +167,7 @@
   const cameraBtn = document.getElementById('cameraBtn');
   const calibBtn = document.getElementById('calibBtn');
   const breakBtn = document.getElementById('breakBtn');
+  const emergencyBtn = document.getElementById('emergencyBtn');
   const statusPill = document.getElementById('statusPill');
   const statusText = document.getElementById('statusText');
   const cameraFrame = document.getElementById('cameraFrame');
@@ -174,6 +184,11 @@
 
   let stream = null, cameraOn = false, onBreak = false, modelsReady = false;
   let studiedSeconds = 0, bankSeconds = 0, ratio = 1; // ratio = break-seconds earned per study-second
+  let onEmergency = false, emergencySeconds = 0;
+  let awaySeconds = 0, idleSeconds = 0;
+  const AUTO_BREAK_AFTER = 10; // seconds away (no face) before a break auto-starts
+  const PENALTY_GRACE = 15;    // seconds of being away or looking up before bank starts draining
+  const PENALTY_RATE = 1;      // seconds deducted from bank per idle second past the grace period
   let sensitivity = 18; // percent drop from baseline that counts as "looking down"
   let baselineRatio = null;
   let smoothedRatio = null;
@@ -186,15 +201,22 @@
     return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
   }
 
+  function formatSignedTime(totalSeconds) {
+    const sign = totalSeconds < 0 ? '-' : '';
+    return sign + formatTime(Math.abs(totalSeconds));
+  }
+
   function updateDisplays() {
     studiedTimeEl.textContent = formatTime(studiedSeconds);
-    bankTimeEl.textContent = formatTime(bankSeconds);
-    bankBarFill.style.width = Math.min(100, (bankSeconds / 600) * 100) + '%';
+    bankTimeEl.textContent = formatSignedTime(bankSeconds);
+    bankTimeEl.classList.toggle('amber', bankSeconds >= 0);
+    bankTimeEl.classList.toggle('away', bankSeconds < 0);
+    bankBarFill.style.width = Math.min(100, (Math.max(0, bankSeconds) / 600) * 100) + '%';
   }
 
   function setStatus(mode) {
     currentState = mode;
-    statusPill.classList.remove('studying', 'away', 'break', 'paused');
+    statusPill.classList.remove('studying', 'away', 'break', 'paused', 'emergency');
     cameraFrame.classList.remove('studying', 'away');
     if (mode === 'studying') {
       statusPill.classList.add('studying'); cameraFrame.classList.add('studying');
@@ -208,6 +230,12 @@
     } else if (mode === 'break') {
       statusPill.classList.add('break');
       statusText.textContent = 'On break';
+    } else if (mode === 'auto-break') {
+      statusPill.classList.add('break');
+      statusText.textContent = 'On break — auto-started (you stepped away)';
+    } else if (mode === 'emergency') {
+      statusPill.classList.add('emergency');
+      statusText.textContent = 'Emergency break — not counted against you';
     } else if (mode === 'off') {
       statusText.textContent = 'Camera off';
     } else if (mode === 'loading') {
@@ -242,6 +270,8 @@
       cameraBtn.textContent = 'Turn off camera';
       calibBtn.disabled = false;
       breakBtn.disabled = false;
+      emergencyBtn.disabled = false;
+      awaySeconds = 0;
       setStatus('away');
       detectLoop();
     } catch (err) {
@@ -258,10 +288,13 @@
     cameraPlaceholder.textContent = 'Turn on the camera to start banking break time.';
     cameraPlaceholder.style.display = 'flex';
     cameraBtn.textContent = 'Turn on camera';
-    calibBtn.disabled = true; breakBtn.disabled = true;
+    calibBtn.disabled = true; breakBtn.disabled = true; emergencyBtn.disabled = true;
     calibStatus.textContent = 'not calibrated';
     gaugeFill.style.width = '0'; gaugeFill.style.transform = 'translateX(-100%)';
+    awaySeconds = 0;
+    idleSeconds = 0;
     if (onBreak) endBreak();
+    if (onEmergency) endEmergency();
     setStatus('off');
   }
 
@@ -302,16 +335,16 @@
           gaugeFill.style.transform = pctDrop >= 0 ? 'translateX(0)' : 'translateX(-100%)';
           gaugeFill.style.background = pctDrop >= sensitivity ? 'var(--teal)' : 'var(--muted)';
 
-          if (!onBreak) {
+          if (!onBreak && !onEmergency) {
             if (pctDrop >= sensitivity) setStatus('studying');
             else setStatus('paused');
           }
-        } else if (!onBreak) {
+        } else if (!onBreak && !onEmergency) {
           setStatus('paused');
         }
       }
     } else {
-      if (!onBreak && !calibrating) setStatus('away');
+      if (!onBreak && !calibrating && !onEmergency) setStatus('away');
     }
 
     setTimeout(() => requestAnimationFrame(detectLoop), 350);
@@ -341,20 +374,52 @@
   }
 
   setInterval(() => {
-    if (!cameraOn || onBreak) return;
+    if (!cameraOn) return;
+
+    if (onEmergency) {
+      emergencySeconds += 1;
+      statusText.textContent = 'Emergency break — not counted against you (' + formatTime(emergencySeconds) + ')';
+      return;
+    }
+
+    if (onBreak) return;
+
     if (currentState === 'studying') {
       studiedSeconds += 1;
       bankSeconds += ratio;
+      awaySeconds = 0;
+      idleSeconds = 0;
+    } else if (currentState === 'away') {
+      awaySeconds += 1;
+      idleSeconds += 1;
+      if (awaySeconds >= AUTO_BREAK_AFTER && bankSeconds > 0) {
+        awaySeconds = 0;
+        idleSeconds = 0;
+        startBreak(true);
+      } else if (idleSeconds >= PENALTY_GRACE) {
+        bankSeconds -= PENALTY_RATE;
+      }
+    } else if (currentState === 'paused') {
+      awaySeconds = 0;
+      idleSeconds += 1;
+      if (idleSeconds >= PENALTY_GRACE) {
+        bankSeconds -= PENALTY_RATE;
+      }
+    } else {
+      awaySeconds = 0;
+      idleSeconds = 0;
     }
     updateDisplays();
   }, 1000);
 
   let breakInterval = null;
-  function startBreak() {
+  function startBreak(auto) {
     if (bankSeconds <= 0) return;
     onBreak = true;
+    awaySeconds = 0;
+    idleSeconds = 0;
     breakBtn.textContent = 'End break';
-    setStatus('break');
+    setStatus(auto ? 'auto-break' : 'break');
     breakInterval = setInterval(() => {
       bankSeconds -= 1;
       if (bankSeconds <= 0) { bankSeconds = 0; endBreak(); }
@@ -368,7 +433,27 @@
     setStatus(cameraOn ? 'paused' : 'off');
   }
 
-  breakBtn.addEventListener('click', () => { onBreak ? endBreak() : startBreak(); });
+  function startEmergency() {
+    if (onBreak) endBreak();
+    onEmergency = true;
+    emergencySeconds = 0;
+    awaySeconds = 0;
+    idleSeconds = 0;
+    emergencyBtn.textContent = 'End emergency break';
+    emergencyBtn.classList.add('active');
+    breakBtn.disabled = true;
+    setStatus('emergency');
+  }
+  function endEmergency() {
+    onEmergency = false;
+    emergencyBtn.textContent = 'Emergency break';
+    emergencyBtn.classList.remove('active');
+    breakBtn.disabled = !cameraOn;
+    setStatus(cameraOn ? 'paused' : 'off');
+  }
+
+  breakBtn.addEventListener('click', () => { onBreak ? endBreak() : startBreak(false); });
+  emergencyBtn.addEventListener('click', () => { onEmergency ? endEmergency() : startEmergency(); });
   cameraBtn.addEventListener('click', toggleCamera);
   calibBtn.addEventListener('click', runCalibration);
   function applyRateValue(v) {
