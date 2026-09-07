@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Focus Bank</title>
+<meta name="theme-color" content="#000000" id="themeColorMeta">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Focus Bank">
+<link rel="icon" id="faviconLink">
+<link rel="apple-touch-icon" id="appleTouchIcon">
+<link rel="manifest" id="manifestLink">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000;
+    --panel: #101317;
+    --line: #262c35;
+    --text: #e9e6dd;
+    --muted: #8a93a3;
+    --amber: #4fa8e0;
+    --amber-dim: #1c3450;
+    --amber-strong: #2c6f95;
+    --amber-hover: #74bfe8;
+    --rate: #4fa8e0;
+    --teal: #52b8a9;
+    --teal-dim: #253a37;
+    --away: #c97066;
+    --away-dim: #3a2825;
+    --paused: #8a93a3;
+    --emergency: #7b8fd6;
+    --emergency-dim: #262c47;
+    --studying: var(--teal);
+    --studying-dim: var(--teal-dim);
+    --teal-hover: #5fc6b6;
+    --start: #2f9e9e;
+    --start-hover: #47bcbc;
+  }
+  [data-theme="light"] {
+    --bg: #f6f1e4;
+    --panel: #fffefa;
+    --line: #e6ddc8;
+    --text: #23262c;
+    --muted: #767c88;
+    --amber: #e3b505;
+    --amber-dim: #faedb0;
+    --amber-strong: #b89400;
+    --amber-hover: #f0c93a;
+    --rate: #e3b505;
+    --teal: #e3b505;
+    --teal-dim: #faedb0;
+    --away: #b5493d;
+    --away-dim: #f5d9d5;
+    --paused: #767c88;
+    --emergency: #5462b3;
+    --emergency-dim: #dfe2f5;
+    --studying: var(--teal);
+    --studying-dim: var(--teal-dim);
+    --teal-hover: #f0c93a;
+    --start: var(--amber);
+    --start-hover: var(--amber-hover);
+  }
+  * { box-sizing: border-box; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+  html, body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 32px 16px;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+  .console { width: 100%; max-width: 920px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 32px 32px 28px; transition: background 0.3s ease, border-color 0.3s ease; position: relative; }
+
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--panel); border: 1px solid var(--line);
+    color: var(--text); cursor: pointer; font-size: 1.25rem; padding: 0;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .icon-btn:hover { border-color: #414d5f; }
+  .icon-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+  .corner-icons {
+    position: absolute; bottom: 8px; left: 8px; z-index: 3;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .offline-badge {
+    font-size: 0.68rem; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 100px; padding: 0 10px; height: 40px; display: inline-flex;
+    align-items: center; white-space: nowrap;
+  }
+
+  .popover {
+    position: absolute; z-index: 10;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    font-size: 0.82rem; display: none; min-width: 190px;
+  }
+  .popover.open { display: block; }
+  .help-popover { bottom: 54px; left: 0; max-width: 300px; line-height: 1.45; color: var(--muted); }
+  .help-list { margin: 0; padding: 0 0 0 16px; list-style: disc; }
+  .help-list li { margin-bottom: 9px; }
+  .help-list li:last-child { margin-bottom: 0; }
+  .help-list strong { color: var(--text); }
+  .settings-popover { bottom: 54px; left: 0; }
+  .settings-popover .panel-label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 12px; }
+  .settings-popover button { width: 100%; margin-top: 6px; }
+
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch-track {
+    position: absolute; inset: 0; background: var(--line); border-radius: 22px; cursor: pointer; transition: background 0.2s ease;
+  }
+  .switch-track::before {
+    content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px;
+    background: var(--text); border-radius: 50%; transition: transform 0.2s ease;
+  }
+  .switch input:checked + .switch-track { background: var(--teal); }
+  .switch input:checked + .switch-track::before { transform: translateX(18px); background: #0f1a18; }
+
+  @keyframes minuteFlash {
+    0% { box-shadow: inset 0 0 0 0 var(--amber-dim); }
+    30% { box-shadow: inset 0 0 0 6px var(--amber-dim); }
+    100% { box-shadow: inset 0 0 0 0 transparent; }
+  }
+  .console.minute-flash { animation: minuteFlash 900ms ease-out; }
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 8px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 500; font-size: 1.5rem; margin: 0; letter-spacing: 0.2px; }
+  .status-pill { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); padding: 5px 12px; border-radius: 100px; border: 1px solid var(--line); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: background 0.3s ease; }
+  .status-pill.studying { color: var(--studying); border-color: var(--studying-dim); }
+  .status-pill.studying .status-dot { background: var(--studying); box-shadow: 0 0 0 4px var(--studying-dim); }
+  .status-pill.away { color: var(--away); border-color: var(--away-dim); }
+  .status-pill.away .status-dot { background: var(--away); box-shadow: 0 0 0 4px var(--away-dim); }
+  .status-pill.break { color: var(--amber); border-color: var(--amber-dim); }
+  .status-pill.break .status-dot { background: var(--amber); box-shadow: 0 0 0 4px var(--amber-dim); }
+  .status-pill.paused { color: var(--paused); }
+  button.reset-btn { background: var(--away); border-color: var(--away); color: #f4f2ec; }
+  button.reset-btn:hover:not(:disabled) { background: #d98276; }
+  .main-grid { display: grid; grid-template-columns: 280px 1fr; gap: 28px; align-items: stretch; }
+  @media (max-width: 560px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .left-col { align-items: center; }
+    .camera-frame { margin: 0 auto; }
+    .focus-score-btn { width: 280px; max-width: 100%; }
+  }
+  .left-col { position: relative; display: flex; flex-direction: column; gap: 10px; }
+  .camera-frame { position: relative; width: 280px; height: 280px; border-radius: 16px; overflow: hidden; background: #10131a; border: 2px solid var(--line); transition: border-color 0.3s ease; flex-shrink: 0; }
+  .camera-frame.studying { border-color: var(--studying); }
+  .camera-frame.away { border-color: var(--away); }
+  .camera-frame.paused { border-style: dashed; border-color: var(--paused); }
+  video, .overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+  .overlay { pointer-events: none; }
+  .camera-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; font-size: 0.8rem; color: var(--muted); line-height: 1.4; z-index: 2; background: #10131a; }
+  .metrics { display: flex; flex-direction: column; gap: 16px; }
+  .metric-row { display: flex; gap: 24px; flex-wrap: wrap; }
+  .metric { flex: 1; min-width: 150px; }
+  .metric-label { font-size: 0.78rem; color: var(--muted); margin-bottom: 4px; }
+  .metric-value { font-family: 'Fraunces', serif; font-variant-numeric: tabular-nums; font-size: 2.2rem; font-weight: 500; }
+  .metric-value.amber { color: var(--amber); }
+  .metric-value.teal { color: var(--studying); }
+  .metric-value.away { color: var(--away); }
+  .bank-bar { height: 6px; border-radius: 3px; background: #12161d; overflow: hidden; margin-top: 8px; border: 1px solid var(--line); }
+  .bank-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--amber-strong), var(--amber)); transition: width 0.4s ease; }
+  .auto-break-warning {
+    margin-top: 7px; font-size: 0.72rem; font-weight: 600; color: var(--away);
+    min-height: 1.1em; opacity: 0; transform: translateY(-2px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .auto-break-warning.visible { opacity: 1; transform: translateY(0); animation: warningPulse 1s ease-in-out infinite; }
+  @keyframes warningPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+  .controls-group { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+  .controls-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .controls-row button { flex: 1 1 100px; }
+  .break-row button { flex: 1 1 auto; }
+  button { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.76rem; font-weight: 500; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease; }
+  button:hover:not(:disabled) { border-color: #414d5f; }
+  button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: var(--teal); border-color: var(--teal); color: #0f1a18; }
+  button.primary:hover:not(:disabled) { background: var(--teal-hover); }
+  button.break-btn { background: var(--amber); border-color: var(--amber); color: #241b06; font-size: 0.82rem; padding: 9px 12px; }
+  button.break-btn:hover:not(:disabled) { background: var(--amber-hover); }
+  button.calib-btn { border-color: var(--emergency); color: var(--emergency); }
+  button.calib-btn:hover:not(:disabled) { background: var(--emergency-dim); }
+  button.focus-score-btn {
+    width: 280px; display: flex; align-items: center; justify-content: center; gap: 7px;
+    border-color: var(--studying); color: var(--studying); font-size: 0.8rem; padding: 9px 12px;
+  }
+  button.focus-score-btn:hover:not(:disabled) { background: var(--studying-dim); }
+  /* Start state: a dedicated greenish-blue, distinct from the amber token used
+     elsewhere, in both dark and light mode. */
+  button.start-pause-btn { background: var(--start); border-color: var(--start); color: #04211f; font-size: 0.85rem; padding: 10px 12px; }
+  button.start-pause-btn:hover:not(:disabled) { background: var(--start-hover); }
+  /* Dark mode only: once Start is clicked and the button flips to "Pause" (waiting/running
+     state), match it to the camera button's color. Light mode keeps the original colors. */
+  :root:not([data-theme="light"]) button.start-pause-btn.is-running { background: var(--teal); border-color: var(--teal); color: #0f1a18; }
+  :root:not([data-theme="light"]) button.start-pause-btn.is-running:hover:not(:disabled) { background: var(--teal-hover); }
+  [data-theme="light"] button.start-pause-btn.is-running { background: var(--amber); border-color: var(--amber); color: #241b06; }
+  [data-theme="light"] button.start-pause-btn.is-running:hover:not(:disabled) { background: var(--amber-hover); }
+  :root:not([data-theme="light"]) button.calib-btn { background: var(--teal); border-color: var(--teal); color: #0f1a18; }
+  :root:not([data-theme="light"]) button.calib-btn:hover:not(:disabled) { background: var(--teal-hover); }
+  .calib-row { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--muted); flex-wrap: wrap; padding: 10px 12px; background: rgba(127,127,127,0.06); border: 1px solid var(--line); border-radius: 10px; }
+  .calib-row .calib-label { text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.68rem; color: var(--muted); }
+  .calib-row .calib-btn { margin-left: auto; }
+  .calib-status { color: var(--text); font-weight: 500; padding: 3px 10px; border-radius: 100px; border: 1px solid var(--line); background: var(--panel); }
+  .calib-countdown {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    z-index: 4; pointer-events: none;
+  }
+  .calib-countdown span {
+    font-family: 'Fraunces', serif; font-size: 4.2rem; font-weight: 600; color: #fff;
+    background: rgba(0,0,0,0.5); width: 104px; height: 104px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+  }
+  .calib-countdown span.tick { animation: countdownPulse 1s ease-out; }
+  @keyframes countdownPulse {
+    0% { transform: scale(1.5); opacity: 0; }
+    35% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0.92); opacity: 0.9; }
+  }
+  .pause-overlay {
+    position: absolute; bottom: 8px; right: 8px; display: none;
+    z-index: 4; pointer-events: none;
+  }
+  .pause-overlay.open { display: flex; }
+  .pause-overlay span {
+    color: var(--paused);
+    background: var(--panel); border: 2px solid var(--line);
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    animation: pauseFadeIn 0.2s ease-out;
+  }
+  .pause-overlay svg { width: 14px; height: 14px; display: block; }
+  @keyframes pauseFadeIn {
+    0% { transform: scale(1.15); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .gauge-row { display: flex; align-items: center; gap: 10px; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .gauge-track { flex: 1; height: 6px; background: #12161d; border: 1px solid var(--line); border-radius: 3px; position: relative; overflow: visible; }
+  .gauge-fill { position: absolute; left: 50%; top: 0; height: 100%; border-radius: 3px; background: var(--studying); width: 0; transform: translateX(-100%); transition: width 0.15s ease, background 0.15s ease; }
+  .gauge-mark { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: var(--muted); transform: translateX(-50%); }
+  .gauge-tick { position: absolute; top: -1px; bottom: -1px; width: 1px; background: var(--line); }
+  .ratio-row { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 0.82rem; color: var(--muted); flex-wrap: wrap; }
+  .ratio-row input[type="range"] { flex: 1; min-width: 90px; accent-color: var(--rate); }
+  .sens-row input[type="range"] { accent-color: var(--teal); }
+  .ratio-value, .sens-value { color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .note { margin-top: 14px; font-size: 0.68rem; line-height: 1.45; color: var(--muted); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,0.55);
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    width: 100%; max-width: 340px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px; box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+  }
+  .modal-title { font-family: 'Fraunces', serif; font-size: 1.1rem; font-weight: 500; margin-bottom: 8px; }
+  .modal-message { font-size: 0.85rem; line-height: 1.5; color: var(--muted); margin-bottom: 18px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal-actions button { flex: 0 0 auto; padding: 8px 16px; }
+  .modal-cancel-btn { background: transparent; }
+  .load-msg { margin-top: 16px; font-size: 0.8rem; color: var(--muted); }
+
+  .focus-score-box { max-width: 420px; width: 100%; }
+  .breakdown-counters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .breakdown-counter {
+    flex: 1 1 100px; min-width: 100px; text-align: center; padding: 12px 8px;
+    background: rgba(127,127,127,0.06); border: 1px solid var(--line); border-radius: 10px;
+  }
+  .breakdown-counter .metric-label { margin-bottom: 6px; }
+  .breakdown-counter .metric-value { font-size: 1.35rem; }
+  .breakdown-chart { display: flex; flex-direction: column; gap: 12px; margin-bottom: 4px; }
+  .chart-row { display: grid; grid-template-columns: 78px 1fr 56px; align-items: center; gap: 10px; }
+  .chart-row-label { font-size: 0.74rem; color: var(--muted); }
+  .chart-row-value { font-size: 0.78rem; color: var(--text); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .chart-track { height: 14px; border-radius: 7px; background: #12161d; border: 1px solid var(--line); overflow: hidden; }
+  [data-theme="light"] .chart-track { background: #efe9d8; }
+  .chart-fill { height: 100%; width: 0%; border-radius: 7px; transition: width 0.4s ease; }
+  .chart-fill-total { background: linear-gradient(90deg, var(--emergency), var(--emergency)); opacity: 0.55; }
+  .chart-fill-studied { background: linear-gradient(90deg, var(--teal), var(--studying)); }
+  [data-theme="light"] .chart-fill-total { background: var(--amber-dim); opacity: 1; }
+  [data-theme="light"] .chart-fill-studied { background: var(--amber); }
+  .breakdown-note { margin-top: 14px; font-size: 0.72rem; line-height: 1.4; color: var(--muted); text-align: center; }
+
+</style>
+</head>
+<body>
+
+<div class="console">
+  <header>
+    <h1>Focus Bank</h1>
+    <div class="status-pill" id="statusPill">
+      <span class="status-dot"></span>
+      <span id="statusText">Loading detector…</span>
+    </div>
+  </header>
+
+  <div class="main-grid">
+    <div class="left-col">
+      <div class="camera-frame" id="cameraFrame">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="overlay" class="overlay"></canvas>
+        <div class="camera-placeholder" id="cameraPlaceholder">Loading face detector…</div>
+        <div class="calib-countdown" id="calibCountdown"><span id="calibCountdownNum"></span></div>
+        <div class="pause-overlay" id="pauseOverlay"><span><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="5.5" y="4" width="4.5" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="4.5" height="16" rx="1.5" fill="currentColor"/></svg></span></div>
+      </div>
+      <button class="focus-score-btn" id="focusScoreBtn">📊 Focus Score</button>
+    </div>
+
+    <div class="metrics">
+      <div class="metric-row">
+        <div class="metric">
+          <div class="metric-label">Time studied</div>
+          <div class="metric-value teal" id="studiedTime">00:00</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Break banked</div>
+          <div class="metric-value amber" id="bankTime">00:00</div>
+          <div class="bank-bar"><div class="bank-bar-fill" id="bankBarFill"></div></div>
+          <div class="auto-break-warning" id="autoBreakWarning" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="controls-group">
+        <div class="controls-row break-row">
+          <button class="break-btn" id="breakBtn" disabled>Take a break</button>
+        </div>
+        <div class="controls-row">
+          <button id="startPauseBtn" class="start-pause-btn" disabled>Start</button>
+        </div>
+        <div class="controls-row">
+          <button class="primary" id="cameraBtn" disabled>Turn on camera</button>
+          <button id="resetBtn" class="reset-btn">Reset</button>
+        </div>
+      </div>
+
+      <div class="calib-row">
+        <span class="calib-label">Calibration</span>
+        <span class="calib-status" id="calibStatus">not calibrated</span>
+        <button id="calibBtn" class="calib-btn" disabled>Calibrate: look at screen</button>
+      </div>
+
+      <div class="gauge-row">
+        <span>up</span>
+        <div class="gauge-track">
+          <div class="gauge-tick" style="left:25%"></div>
+          <div class="gauge-tick" style="left:75%"></div>
+          <div class="gauge-mark"></div>
+          <div class="gauge-fill" id="gaugeFill"></div>
+        </div>
+        <span>down</span>
+      </div>
+
+      <div class="ratio-row">
+        <span>Exchange rate</span>
+        <input type="range" id="ratioSlider" min="-10" max="10" step="1" value="1" />
+        <span class="ratio-value" id="ratioValue">1s studied = 1s break</span>
+      </div>
+      <div class="ratio-row sens-row">
+        <span>Sensitivity</span>
+        <input type="range" id="sensSlider" min="5" max="35" step="1" value="18" />
+        <span class="sens-value" id="sensValue">18%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="corner-icons">
+    <button class="icon-btn" id="helpBtn" aria-label="Help" title="Help">💡</button>
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">⚙️</button>
+    <span class="offline-badge" id="offlineBadge" style="display:none;"></span>
+  </div>
+  <div class="popover help-popover" id="helpPopover">
+    <ul class="help-list">
+      <li><strong>Setup.</strong> Turn on the camera, then Calibrate while looking at the screen normally.</li>
+      <li><strong>Tracking.</strong> Head down = studying. Head up or away = idle. Hit Start to make it count.</li>
+      <li><strong>Earning.</strong> Studying banks break time. Looking up or away for 15s straight auto-starts a break, counting down from your bank — if it hits 00:00 it keeps going into debt until the break ends.</li>
+      <li><strong>Manual mode.</strong> "Manual breaks only" turns off auto-breaks — you start breaks yourself with the button. A manual break can still run into debt the same way if it counts all the way down.</li>
+      <li><strong>Glasses.</strong> Calibrate as usual — the tracker blends eyebrow position in with eye position, which keeps it stable through lens glare and frame reflections.</li>
+      <li><strong>Offline.</strong> The face detector downloads once and is then cached in your browser, so Focus Bank keeps working without an internet connection after that first load.</li>
+      <li><strong>HTTPS required.</strong> Browsers only allow camera access (and offline caching) on a secure connection — open this page over HTTPS, or from localhost, for those to work.</li>
+      <li><strong>Privacy.</strong> Everything stays on this device. Nothing leaves your browser.</li>
+    </ul>
+  </div>
+  <div class="popover settings-popover" id="settingsPopover">
+    <div class="switch-row">
+      <span>Dark mode</span>
+      <label class="switch">
+        <input type="checkbox" id="themeToggle" checked>
+        <span class="switch-track"></span>
+      </label>
+    </div>
+    <div class="panel-label">Breaks</div>
+    <div class="switch-row">
+      <span>Manual breaks only</span>
+      <label class="switch">
+        <input type="checkbox" id="manualBreaksToggle">
+        <span class="switch-track"></span>
+      </label>
+    </div>
+    <div class="panel-label">Data</div>
+    <button id="resetAllBtn" class="reset-btn">Reset all</button>
+  </div>
+
+  <div class="modal-overlay" id="confirmOverlay">
+    <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+      <div class="modal-title" id="confirmTitle"></div>
+      <div class="modal-message" id="confirmMessage"></div>
+      <div class="modal-actions">
+        <button class="modal-cancel-btn" id="confirmCancelBtn">Cancel</button>
+        <button class="modal-confirm-btn reset-btn" id="confirmOkBtn">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="focusScoreOverlay">
+    <div class="modal-box focus-score-box" role="dialog" aria-modal="true" aria-labelledby="focusScoreTitle">
+      <div class="modal-title" id="focusScoreTitle">Focus Score</div>
+      <div class="breakdown-counters">
+        <div class="breakdown-counter">
+          <div class="metric-label">Total time</div>
+          <div class="metric-value" id="fsTotalTime">00:00</div>
+        </div>
+        <div class="breakdown-counter">
+          <div class="metric-label">Studied time</div>
+          <div class="metric-value teal" id="fsStudiedTime">00:00</div>
+        </div>
+        <div class="breakdown-counter">
+          <div class="metric-label">Break time</div>
+          <div class="metric-value amber" id="fsBreakTime">00:00</div>
+        </div>
+      </div>
+      <div class="breakdown-chart">
+        <div class="chart-row">
+          <div class="chart-row-label">Total time</div>
+          <div class="chart-track"><div class="chart-fill chart-fill-total" id="fsTotalBar"></div></div>
+          <div class="chart-row-value" id="fsTotalBarValue">00:00</div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-row-label">Studied</div>
+          <div class="chart-track"><div class="chart-fill chart-fill-studied" id="fsStudiedBar"></div></div>
+          <div class="chart-row-value" id="fsStudiedBarValue">00:00</div>
+        </div>
+      </div>
+      <div class="breakdown-note" id="fsNote"></div>
+      <div class="modal-actions">
+        <button class="modal-cancel-btn" id="focusScoreCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(async function () {
+  const video = document.getElementById('video');
+  const overlay = document.getElementById('overlay');
+  const octx = overlay.getContext('2d');
+  const cameraBtn = document.getElementById('cameraBtn');
+  const calibBtn = document.getElementById('calibBtn');
+  const breakBtn = document.getElementById('breakBtn');
+  const startPauseBtn = document.getElementById('startPauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const resetAllBtn = document.getElementById('resetAllBtn');
+  const statusPill = document.getElementById('statusPill');
+  const statusText = document.getElementById('statusText');
+  const cameraFrame = document.getElementById('cameraFrame');
+  const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+  const studiedTimeEl = document.getElementById('studiedTime');
+  const bankTimeEl = document.getElementById('bankTime');
+  const bankBarFill = document.getElementById('bankBarFill');
+  const autoBreakWarningEl = document.getElementById('autoBreakWarning');
+  const ratioSlider = document.getElementById('ratioSlider');
+  const ratioValue = document.getElementById('ratioValue');
+  const sensSlider = document.getElementById('sensSlider');
+  const sensValue = document.getElementById('sensValue');
+  const calibStatus = document.getElementById('calibStatus');
+  const calibCountdown = document.getElementById('calibCountdown');
+  const calibCountdownNum = document.getElementById('calibCountdownNum');
+  const pauseOverlay = document.getElementById('pauseOverlay');
+  const gaugeFill = document.getElementById('gaugeFill');
+  const offlineBadge = document.getElementById('offlineBadge');
+  const helpBtn = document.getElementById('helpBtn');
+  const helpPopover = document.getElementById('helpPopover');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsPopover = document.getElementById('settingsPopover');
+  const themeToggle = document.getElementById('themeToggle');
+  const manualBreaksToggle = document.getElementById('manualBreaksToggle');
+  const consoleEl = document.querySelector('.console');
+  const confirmOverlay = document.getElementById('confirmOverlay');
+  const confirmTitle = document.getElementById('confirmTitle');
+  const confirmMessage = document.getElementById('confirmMessage');
+  const confirmOkBtn = document.getElementById('confirmOkBtn');
+  const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+  const focusScoreBtn = document.getElementById('focusScoreBtn');
+  const focusScoreOverlay = document.getElementById('focusScoreOverlay');
+  const focusScoreCloseBtn = document.getElementById('focusScoreCloseBtn');
+  const fsTotalTime = document.getElementById('fsTotalTime');
+  const fsStudiedTime = document.getElementById('fsStudiedTime');
+  const fsBreakTime = document.getElementById('fsBreakTime');
+  const fsTotalBar = document.getElementById('fsTotalBar');
+  const fsStudiedBar = document.getElementById('fsStudiedBar');
+  const fsTotalBarValue = document.getElementById('fsTotalBarValue');
+  const fsStudiedBarValue = document.getElementById('fsStudiedBarValue');
+  const fsNote = document.getElementById('fsNote');
+
+  // In-app replacement for window.confirm(): resolves true/false once the
+  // user picks an option, so it can be awaited just like a native confirm.
+  function showConfirm(title, message) {
+    return new Promise((resolve) => {
+      confirmTitle.textContent = title;
+      confirmMessage.textContent = message;
+      confirmOverlay.classList.add('open');
+
+      function cleanup(result) {
+        confirmOverlay.classList.remove('open');
+        confirmOkBtn.removeEventListener('click', onOk);
+        confirmCancelBtn.removeEventListener('click', onCancel);
+        confirmOverlay.removeEventListener('click', onOverlayClick);
+        document.removeEventListener('keydown', onKeydown);
+        resolve(result);
+      }
+      function onOk() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      function onOverlayClick(e) { if (e.target === confirmOverlay) cleanup(false); }
+      function onKeydown(e) { if (e.key === 'Escape') cleanup(false); }
+
+      confirmOkBtn.addEventListener('click', onOk);
+      confirmCancelBtn.addEventListener('click', onCancel);
+      confirmOverlay.addEventListener('click', onOverlayClick);
+      document.addEventListener('keydown', onKeydown);
+      confirmOkBtn.focus();
+    });
+  }
+
+  let stream = null, cameraOn = false, onBreak = false, modelsReady = false;
+  // getUserMedia and the Cache Storage API (used below for offline support)
+  // both require a "secure context" — HTTPS, or http://localhost during
+  // local development. Checked once up front so the camera flow and the
+  // asset-loading flow can both give a clear, specific explanation instead
+  // of a generic "camera blocked" error when the page is served over plain http.
+  const isSecureContext = window.isSecureContext;
+  let offlineReady = false; // true once the face detector's assets are fully cached for offline use
+
+  function updateOfflineBadge() {
+    if (!offlineBadge) return;
+    if (!offlineReady) { offlineBadge.style.display = 'none'; return; }
+    offlineBadge.style.display = 'inline-flex';
+    offlineBadge.textContent = navigator.onLine ? 'Offline ready' : 'Offline mode';
+    offlineBadge.title = navigator.onLine
+      ? 'The face detector is cached — Focus Bank will keep working even without an internet connection.'
+      : 'No internet connection detected — running entirely from the cached face detector.';
+  }
+  window.addEventListener('online', updateOfflineBadge);
+  window.addEventListener('offline', updateOfflineBadge);
+
+  let breakIsAuto = false; // true only when the current break was auto-started by stepping away
+  let studiedSeconds = 0, bankSeconds = 0, ratio = 1; // ratio = break-seconds earned per study-second
+  let isRunning = false; // master start/pause switch for all timers
+  let awaySeconds = 0;
+  let trackedSeconds = 0; // total accountable seconds (studying+paused+away) used for focus quality
+  let totalBreakSeconds = 0; // cumulative seconds spent on break (auto + manual), for the Focus Score view
+  let breakElapsedSeconds = 0; // resets each break, used for the per-minute ambient cue
+  const AUTO_BREAK_AFTER = 15; // seconds looking up / away (no face) before a break auto-starts
+  const AUTO_BREAK_WARNING_LEAD = 5; // seconds of advance warning (beep + text) before the auto-break fires
+  let autoBreakWarningSecond = null; // last "seconds left" value we beeped for, so each second beeps exactly once
+  let sensitivity = 18; // percent drop from baseline that counts as "looking down"
+  let manualBreaksOnly = false; // when true, breaks never auto-start when you step away
+  let baselineRatio = null;
+  let smoothedRatio = null;
+  let currentState = 'away'; // 'away' | 'paused' | 'studying'
+  let calibrating = false;
+
+  const STORAGE_KEY = 'focusBankData';
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        studiedSeconds,
+        bankSeconds,
+        trackedSeconds,
+        totalBreakSeconds,
+        ratioValue: parseInt(ratioSlider.value, 10),
+        sensitivity,
+        baselineRatio,
+        manualBreaksOnly,
+        theme: document.documentElement.getAttribute('data-theme') || 'dark'
+      }));
+    } catch (e) { /* storage unavailable, fail silently */ }
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (typeof data.studiedSeconds === 'number') studiedSeconds = data.studiedSeconds;
+      if (typeof data.bankSeconds === 'number') bankSeconds = data.bankSeconds;
+      if (typeof data.trackedSeconds === 'number') trackedSeconds = data.trackedSeconds;
+      if (typeof data.totalBreakSeconds === 'number') totalBreakSeconds = data.totalBreakSeconds;
+      if (typeof data.sensitivity === 'number') {
+        sensitivity = data.sensitivity;
+        sensSlider.value = String(sensitivity);
+        sensValue.textContent = sensitivity + '%';
+      }
+      if (typeof data.ratioValue === 'number') {
+        ratioSlider.value = String(data.ratioValue);
+      }
+      if (typeof data.baselineRatio === 'number') {
+        baselineRatio = data.baselineRatio;
+        calibStatus.textContent = 'calibrated ✓ (saved)';
+      }
+      if (typeof data.manualBreaksOnly === 'boolean') {
+        manualBreaksOnly = data.manualBreaksOnly;
+        manualBreaksToggle.checked = manualBreaksOnly;
+      }
+      if (data.theme === 'light' || data.theme === 'dark') {
+        applyTheme(data.theme);
+      }
+    } catch (e) { /* corrupted or unavailable, start fresh */ }
+  }
+
+  function applyTheme(name) {
+    document.documentElement.setAttribute('data-theme', name);
+    themeToggle.checked = name === 'dark';
+    document.getElementById('themeColorMeta').setAttribute('content', name === 'dark' ? '#000000' : '#f6f1e4');
+    // accent-color doesn't reliably repick up a changed CSS variable in every browser,
+    // so resolve the current colors and set them directly on each slider.
+    const styles = getComputedStyle(document.documentElement);
+    ratioSlider.style.accentColor = styles.getPropertyValue('--rate').trim();
+    sensSlider.style.accentColor = styles.getPropertyValue('--teal').trim();
+  }
+
+  loadState();
+
+  // Help / settings popovers
+  helpBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    settingsPopover.classList.remove('open');
+    helpPopover.classList.toggle('open');
+  });
+  settingsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    helpPopover.classList.remove('open');
+    settingsPopover.classList.toggle('open');
+  });
+  document.addEventListener('click', () => {
+    helpPopover.classList.remove('open');
+    settingsPopover.classList.remove('open');
+  });
+  helpPopover.addEventListener('click', (e) => e.stopPropagation());
+  settingsPopover.addEventListener('click', (e) => e.stopPropagation());
+
+  themeToggle.addEventListener('change', () => {
+    applyTheme(themeToggle.checked ? 'dark' : 'light');
+    saveState();
+  });
+
+  manualBreaksToggle.addEventListener('change', () => {
+    manualBreaksOnly = manualBreaksToggle.checked;
+    // If auto-breaks are being turned off while an automatic break is already
+    // running, end it immediately — no automated break session should continue
+    // once manual-only mode is in effect.
+    if (manualBreaksOnly && onBreak && breakIsAuto) endBreak();
+    // Also clear any pending warning countdown — it would be misleading to
+    // keep showing "auto-break in Ns" once auto-breaks are disabled.
+    if (manualBreaksOnly) clearAutoBreakWarning();
+    saveState();
+  });
+
+  // Generate a simple in-browser icon so "Add to Home Screen" gets a real icon, no external image needed
+  (function generateIcon() {
+    const c = document.createElement('canvas');
+    c.width = 180; c.height = 180;
+    const ic = c.getContext('2d');
+    ic.fillStyle = '#000000';
+    ic.fillRect(0, 0, 180, 180);
+    ic.fillStyle = '#e3a542';
+    ic.beginPath();
+    ic.arc(90, 90, 62, 0, Math.PI * 2);
+    ic.fill();
+    ic.fillStyle = '#000000';
+    ic.font = 'bold 90px Georgia, serif';
+    ic.textAlign = 'center';
+    ic.textBaseline = 'middle';
+    ic.fillText('F', 91, 98);
+    const dataUrl = c.toDataURL('image/png');
+    document.getElementById('faviconLink').href = dataUrl;
+    document.getElementById('appleTouchIcon').href = dataUrl;
+    const manifest = {
+      name: 'Focus Bank', short_name: 'Focus Bank', start_url: '.', display: 'standalone',
+      background_color: '#000000', theme_color: '#000000',
+      icons: [{ src: dataUrl, sizes: '180x180', type: 'image/png' }]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    document.getElementById('manifestLink').href = URL.createObjectURL(blob);
+  })();
+
+  function formatTime(totalSeconds) {
+    const s = Math.max(0, Math.floor(totalSeconds));
+    const m = Math.floor(s / 60), sec = s % 60;
+    return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+  }
+
+  function formatSignedTime(totalSeconds) {
+    const sign = totalSeconds < 0 ? '-' : '';
+    return sign + formatTime(Math.abs(totalSeconds));
+  }
+
+  function updateDisplays() {
+    studiedTimeEl.textContent = formatTime(studiedSeconds);
+    bankTimeEl.textContent = formatSignedTime(bankSeconds);
+    bankTimeEl.classList.toggle('amber', bankSeconds >= 0);
+    bankTimeEl.classList.toggle('away', bankSeconds < 0);
+    bankBarFill.style.width = Math.min(100, (Math.max(0, bankSeconds) / 600) * 100) + '%';
+
+    saveState();
+  }
+
+  // Longer explanations for each status, shown as a tooltip on the pill —
+  // keeps the on-screen text short while the detail is still a hover away.
+  const FULL_STATUS_TEXT = {
+    studying: 'Looking down — earning break time',
+    paused: 'Face seen, but not looking down — not earning',
+    away: 'No face detected',
+    break: 'On break',
+    'auto-break': 'On break — auto-started because you stepped away',
+    ready: 'Ready — hit Start to begin tracking',
+    off: 'Camera is off',
+    loading: 'Loading face detector…'
+  };
+
+  function setStatus(mode) {
+    currentState = mode;
+    statusPill.classList.remove('studying', 'away', 'break', 'paused');
+    cameraFrame.classList.remove('studying', 'away');
+    if (mode === 'studying') {
+      statusPill.classList.add('studying'); cameraFrame.classList.add('studying');
+      statusText.textContent = 'Earning';
+    } else if (mode === 'paused') {
+      statusPill.classList.add('paused');
+      statusText.textContent = 'Idle';
+    } else if (mode === 'away') {
+      statusPill.classList.add('away'); cameraFrame.classList.add('away');
+      statusText.textContent = 'Away';
+    } else if (mode === 'break') {
+      statusPill.classList.add('break');
+      statusText.textContent = 'On break';
+    } else if (mode === 'auto-break') {
+      statusPill.classList.add('break');
+      statusText.textContent = 'Auto break';
+    } else if (mode === 'ready') {
+      statusPill.classList.add('paused');
+      statusText.textContent = 'Ready';
+    } else if (mode === 'off') {
+      statusText.textContent = 'Camera off';
+    } else if (mode === 'loading') {
+      statusText.textContent = 'Loading…';
+    }
+    // Vision tracking runs continuously once the camera is on, but nothing is
+    // being counted until Start is pressed — override the display to make
+    // that explicit, using the same neutral styling as the idle state.
+    let fullText = FULL_STATUS_TEXT[mode] || '';
+    if (!isRunning && cameraOn && (mode === 'studying' || mode === 'away' || mode === 'paused' || mode === 'break' || mode === 'auto-break')) {
+      statusPill.classList.remove('studying', 'away', 'break');
+      cameraFrame.classList.remove('studying', 'away');
+      statusPill.classList.add('paused');
+      statusText.textContent = 'Paused';
+      fullText += ' — hit Start to resume counting';
+    }
+    statusPill.title = fullText;
+    updatePauseOverlay();
+  }
+
+  // Single source of truth for the small "paused" badge in the corner of the
+  // camera box: visible whenever the camera is on but nothing is being
+  // tracked (Start not pressed, or a calibration countdown is running),
+  // regardless of which mode setStatus was last called with. Previously this
+  // lived inline inside setStatus and only fired for a subset of modes, so a
+  // transition through 'ready' (e.g. hitting Pause) would hide the badge and
+  // leave it hidden until the next detection frame happened to re-show it —
+  // it worked erratically. Calling this one function from every place that
+  // changes isRunning / cameraOn / calibrating fixes that.
+  function updatePauseOverlay() {
+    const shouldShow = cameraOn && !isRunning && !calibrating;
+    pauseOverlay.classList.toggle('open', shouldShow);
+    cameraFrame.classList.toggle('paused', shouldShow);
+  }
+
+  // Everything needed for face tracking — the face-api.js library itself,
+  // plus the tiny detector + landmark model weights — is fetched through
+  // this cache-first wrapper instead of loading the library from a plain
+  // <script src> and letting face-api hit the CDN directly for its models.
+  // The first load still needs the network, but every asset it touches is
+  // stashed in the Cache Storage API, so every load after that — including
+  // fully offline — reuses the cached copy instead of failing. Requires a
+  // secure context (HTTPS or localhost); on plain http it just falls back
+  // to an uncached network fetch with no offline support.
+  const FACEAPI_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js';
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+  const OFFLINE_CACHE_NAME = 'focus-bank-assets-v1';
+  const canCacheAssets = isSecureContext && 'caches' in window;
+
+  async function cachedFetch(url) {
+    if (!canCacheAssets) return fetch(url);
+    const cache = await caches.open(OFFLINE_CACHE_NAME);
+    const hit = await cache.match(url);
+    if (hit) return hit;
+    const response = await fetch(url);
+    if (response && response.ok) cache.put(url, response.clone()).catch(() => { /* caching is best-effort */ });
+    return response;
+  }
+
+  async function loadFaceApiScript() {
+    if (window.faceapi) return;
+    const res = await cachedFetch(FACEAPI_SCRIPT_URL);
+    if (!res || !res.ok) throw new Error('face-api script unavailable');
+    const code = await res.text();
+    const script = document.createElement('script');
+    script.textContent = code; // a plain inline script executes synchronously as soon as it's appended
+    document.head.appendChild(script);
+    if (!window.faceapi) throw new Error('face-api failed to initialize');
+  }
+
+  // Load face-api and its models
+  try {
+    await loadFaceApiScript();
+
+    // face-api downloads its model manifest + weight files with the
+    // browser's normal fetch — routing that fetch through the cache-first
+    // wrapper (only for URLs under MODEL_URL) makes those downloads
+    // cacheable too, without needing to know the exact file names.
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : (input && input.url);
+      if (url && url.indexOf(MODEL_URL) === 0) return cachedFetch(url);
+      return nativeFetch(input, init);
+    };
+    try {
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
+    } finally {
+      window.fetch = nativeFetch;
+    }
+
+    modelsReady = true;
+    offlineReady = canCacheAssets;
+    updateOfflineBadge();
+    cameraBtn.disabled = false;
+    cameraPlaceholder.textContent = isSecureContext
+      ? 'Turn on the camera to start banking break time.'
+      : 'This page is loaded over an insecure connection (plain http), so the browser will block camera access. Open it over HTTPS, or from localhost, to use the camera.';
+    setStatus('off');
+  } catch (err) {
+    cameraPlaceholder.textContent = navigator.onLine
+      ? 'Could not load the face-tracking model. Check your internet connection and reload the page.'
+      : 'You\u2019re offline and there\u2019s no cached copy of the face detector yet. Connect once so it can download — after that it will keep working offline.';
+    statusText.textContent = 'Detector failed to load';
+  }
+
+  async function toggleCamera() {
+    if (!modelsReady) return;
+    if (cameraOn) { stopCamera(); return; }
+    if (!isSecureContext) {
+      cameraPlaceholder.style.display = 'flex';
+      cameraPlaceholder.textContent = 'Camera access needs a secure connection. This page is loaded over plain http, so the browser blocks it here — open it over HTTPS, or from localhost, to use the camera.';
+      return;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      video.srcObject = stream;
+      await new Promise(res => { video.onloadedmetadata = res; });
+      overlay.width = video.videoWidth; overlay.height = video.videoHeight;
+      cameraOn = true;
+      cameraPlaceholder.style.display = 'none';
+      cameraBtn.textContent = 'Turn off camera';
+      calibBtn.disabled = false;
+      breakBtn.disabled = false;
+      startPauseBtn.disabled = false;
+      awaySeconds = 0;
+      detectLoop();
+      setStatus('ready');
+    } catch (err) {
+      cameraPlaceholder.style.display = 'flex';
+      cameraPlaceholder.textContent = 'Camera access was blocked or unavailable. Check your browser permissions and try again.';
+    }
+  }
+
+  function stopCamera() {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = null; cameraOn = false; smoothedRatio = null; missedFrames = 0;
+    video.srcObject = null;
+    octx.clearRect(0, 0, overlay.width, overlay.height);
+    cameraPlaceholder.textContent = 'Turn on the camera to start banking break time.';
+    cameraPlaceholder.style.display = 'flex';
+    cameraBtn.textContent = 'Turn on camera';
+    calibBtn.disabled = true; breakBtn.disabled = true; startPauseBtn.disabled = true;
+    if (baselineRatio === null) calibStatus.textContent = 'not calibrated';
+    gaugeFill.style.width = '0'; gaugeFill.style.transform = 'translateX(-100%)';
+    awaySeconds = 0;
+    clearAutoBreakWarning();
+    if (onBreak) endBreak();
+    setRunning(false);
+    setStatus('off');
+  }
+
+  // Computes the eye→nose→chin ratio used to detect "looking down", but
+  // degrades gracefully when only part of the face is visible — turned to
+  // the side, chin cropped by the edge of frame, partly covered by a hand,
+  // etc. — instead of failing outright the moment anything isn't picture
+  // perfect. `videoW`/`videoH` let it tell a genuinely-visible landmark from
+  // one face-api has extrapolated past the edge of the frame. `fallbackRatio`
+  // (the last known-good smoothed ratio, or the calibrated baseline) is used
+  // to make a reasonable guess at whichever part isn't currently visible.
+  function computeRatio(landmarks, videoW, videoH, fallbackRatio) {
+    const margin = 4;
+    const inBounds = (p) => p.x >= margin && p.x <= videoW - margin && p.y >= margin && p.y <= videoH - margin;
+
+    // Eye line: blend the eye contour with the eyebrow line just above it.
+    // Glasses sit right across the eye contour, and lens glare or a frame
+    // edge can nudge those points around slightly from frame to frame —
+    // the eyebrows sit above the frame entirely and aren't affected by it,
+    // so averaging the two keeps the eye-line reading steady for glasses
+    // wearers instead of reacting to every bit of glare as if it were a
+    // head movement. Also gives a wider net for whichever eye/eyebrow
+    // points are actually in view when the face is turned or partly hidden.
+    let eyePoints = landmarks.getLeftEye().filter(inBounds).concat(landmarks.getRightEye().filter(inBounds))
+      .concat(landmarks.getLeftEyeBrow().filter(inBounds)).concat(landmarks.getRightEyeBrow().filter(inBounds));
+    if (eyePoints.length === 0) return null; // nothing usable near the eye line at all
+    const eyeMidY = eyePoints.reduce((a, p) => a + p.y, 0) / eyePoints.length;
+
+    const noseVisible = landmarks.getNose().filter(inBounds);
+    if (noseVisible.length === 0) return null; // no reliable anchor left to measure from
+    const noseY = noseVisible[noseVisible.length - 1].y;
+
+    const upper = noseY - eyeMidY;
+    if (upper <= 0) return null;
+
+    const jaw = landmarks.getJawOutline();
+    const chinTip = jaw[8];
+    if (inBounds(chinTip)) {
+      return { ratio: (chinTip.y - noseY) / upper, estimated: false };
+    }
+
+    // Chin is out of frame or occluded (looking far down, resting on a
+    // hand, chin below the camera's view) — estimate the lower segment
+    // from the most recent reliable reading rather than losing the signal
+    // entirely for a frame that's otherwise perfectly readable.
+    if (fallbackRatio !== null && fallbackRatio !== undefined) {
+      return { ratio: fallbackRatio, estimated: true };
+    }
+    return null;
+  }
+
+  let calibSamples = [];
+  let missedFrames = 0;
+  const MISSED_FRAMES_BEFORE_AWAY = 3; // ~1s at the 350ms loop interval — absorbs a quick head turn or momentary obstruction instead of instantly flagging "away"
+
+  // Two-pass detection: a cheap, tightly-tuned pass handles the common case
+  // (face square-on, well lit, fully in frame) at low cost, and only when
+  // that comes back empty do we pay for a second, wider-range pass — a
+  // bigger input size (better for faces that are small/far away) and a
+  // much lower score threshold (catches steep angles, partial occlusion,
+  // and faces half out of frame that the fast pass isn't confident enough
+  // to report). This widens what counts as "a face" without slowing down
+  // the normal case.
+  async function detectFace() {
+    let result = await faceapi
+      .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 }))
+      .withFaceLandmarks(true);
+    if (result) return result;
+
+    result = await faceapi
+      .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 608, scoreThreshold: 0.12 }))
+      .withFaceLandmarks(true);
+    return result || null;
+  }
+
+  async function detectLoop() {
+    if (!cameraOn) return;
+    const result = await detectFace();
+
+    octx.clearRect(0, 0, overlay.width, overlay.height);
+
+    // Vision tracking (landmarks, gauge, live status) always runs whenever the camera
+    // is on — Start/Pause only gates whether the running clock below acts on it.
+    if (result) {
+      missedFrames = 0;
+      faceapi.draw.drawFaceLandmarks(overlay, result);
+      const fallback = smoothedRatio !== null ? smoothedRatio : baselineRatio;
+      const computed = computeRatio(result.landmarks, video.videoWidth, video.videoHeight, fallback);
+      if (computed !== null) {
+        const r = computed.ratio;
+        // A guessed reading (chin out of frame, estimated from history)
+        // is blended in more gently than a directly-measured one, so an
+        // occasional rough estimate can't yank the smoothed value around.
+        let blend = computed.estimated ? 0.12 : 0.3;
+        // Guard against a single noisy frame — glare off a glasses lens, a
+        // stray reflection, a momentary landmark jitter — causing a big,
+        // instant jump. An implausibly large single-frame change gets
+        // treated like a low-confidence reading rather than fully trusted;
+        // genuine fast head movement still comes through, just over a
+        // couple of frames instead of snapping on one.
+        if (smoothedRatio !== null && smoothedRatio > 0) {
+          const change = Math.abs(r - smoothedRatio) / smoothedRatio;
+          if (change > 0.6) blend = Math.min(blend, 0.08);
+        }
+        smoothedRatio = smoothedRatio === null ? r : smoothedRatio * (1 - blend) + r * blend;
+
+        if (calibrating) {
+          if (!computed.estimated) calibSamples.push(smoothedRatio); // only bank clean, fully-measured samples during calibration
+        } else if (baselineRatio !== null) {
+          const pctDrop = ((baselineRatio - smoothedRatio) / baselineRatio) * 100;
+          gaugeFill.style.width = Math.min(50, Math.max(0, Math.abs(pctDrop) * 1.4)) + '%';
+          gaugeFill.style.transform = pctDrop >= 0 ? 'translateX(0)' : 'translateX(-100%)';
+          gaugeFill.style.background = pctDrop >= sensitivity ? 'var(--studying)' : 'var(--muted)';
+
+          if (!onBreak) {
+            if (pctDrop >= sensitivity) setStatus('studying');
+            else setStatus('paused');
+          }
+        } else if (!onBreak) {
+          setStatus('paused');
+        }
+      }
+    } else {
+      missedFrames += 1;
+      // Don't call it "away" the instant one frame comes back empty — a
+      // fast head turn or something briefly passing in front of the
+      // camera shouldn't reset the state. Only flip to "away" once
+      // detection has failed for several consecutive frames in a row.
+      if (missedFrames >= MISSED_FRAMES_BEFORE_AWAY && !onBreak && !calibrating) {
+        setStatus('away');
+      }
+    }
+
+    setTimeout(() => requestAnimationFrame(detectLoop), 350);
+  }
+
+  function showCalibTick(label) {
+    calibCountdownNum.textContent = label;
+    calibCountdown.style.display = 'flex';
+    calibCountdownNum.classList.remove('tick');
+    void calibCountdownNum.offsetWidth; // restart animation
+    calibCountdownNum.classList.add('tick');
+  }
+
+  async function runCalibration() {
+    if (!cameraOn) return;
+    calibrating = true;
+    calibSamples = [];
+    calibBtn.disabled = true;
+    updatePauseOverlay(); // calibration countdown owns the camera box while it runs
+    let count = 3;
+    calibStatus.textContent = 'look at the screen normally… ' + count;
+    showCalibTick(count);
+    const interval = setInterval(() => {
+      count -= 1;
+      if (count > 0) {
+        calibStatus.textContent = 'look at the screen normally… ' + count;
+        showCalibTick(count);
+      }
+    }, 1000);
+    await new Promise(res => setTimeout(res, 3000));
+    clearInterval(interval);
+    calibCountdown.style.display = 'none';
+    calibrating = false;
+    calibBtn.disabled = false;
+    updatePauseOverlay(); // calibration is done — badge reappears if still paused
+    if (calibSamples.length > 3) {
+      baselineRatio = calibSamples.reduce((a, b) => a + b, 0) / calibSamples.length;
+      calibStatus.textContent = 'calibrated ✓';
+      saveState();
+    } else {
+      calibStatus.textContent = 'no face seen, try again';
+    }
+  }
+
+  setInterval(() => {
+    if (!cameraOn || !isRunning) return; // paused (or camera off): all timers hold
+
+    if (onBreak) {
+      clearAutoBreakWarning(); // never show the pre-break warning while already on break
+      breakElapsedSeconds += 1;
+      trackedSeconds += 1; // normal breaks count toward total time, just not toward studied time
+      totalBreakSeconds += 1; // cumulative break time for the Focus Score view
+      // Count down from the bank; once it hits 00:00 keep going into negative
+      // (overdrafted) time instead of ending the break. Only a manual "End
+      // break" click stops the clock now — this applies to both auto-started
+      // and manually-started breaks.
+      bankSeconds -= 1;
+      if (breakElapsedSeconds > 0 && breakElapsedSeconds % 60 === 0) ambientMinuteCue();
+      updateDisplays();
+      return;
+    }
+
+    if (currentState === 'studying') {
+      studiedSeconds += 1;
+      bankSeconds += ratio;
+      trackedSeconds += 1;
+      awaySeconds = 0;
+      clearAutoBreakWarning(); // looking back down cancels any pending auto-break warning
+    } else if (currentState === 'away' || currentState === 'paused') {
+      // Looking away, looking up, or leaving the frame all count the same way:
+      // 15 consecutive seconds of it triggers an automatic break — unless
+      // "manual breaks only" is on, in which case auto-triggering (and its
+      // warning) is fully disabled and tracking just keeps watching.
+      // handleAwayTick already bumps trackedSeconds itself on the tick where
+      // the break fires, so it's only added here otherwise — exactly one
+      // trackedSeconds increment happens per tick either way.
+      if (!handleAwayTick()) trackedSeconds += 1;
+    } else {
+      awaySeconds = 0;
+      trackedSeconds += 1;
+      clearAutoBreakWarning();
+    }
+    updateDisplays();
+  }, 1000);
+
+  // Soft ambient chime + gentle flash, once per minute spent on break
+  let audioCtx = null;
+  function ambientMinuteCue() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 660;
+      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.06, audioCtx.currentTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.6);
+    } catch (e) { /* audio unavailable, skip silently */ }
+    consoleEl.classList.remove('minute-flash');
+    void consoleEl.offsetWidth; // restart animation
+    consoleEl.classList.add('minute-flash');
+  }
+
+  function startBreak(auto) {
+    // No bank-balance gate here: a break (auto or manual) can start even at
+    // 00:00 (or already negative) and will simply continue counting down
+    // into negative/overdraft time.
+    onBreak = true;
+    breakIsAuto = auto;
+    awaySeconds = 0;
+    breakElapsedSeconds = 0;
+    clearAutoBreakWarning();
+    breakBtn.textContent = 'End break';
+    setStatus(auto ? 'auto-break' : 'break');
+  }
+  function endBreak() {
+    onBreak = false;
+    breakIsAuto = false;
+    clearAutoBreakWarning();
+    breakBtn.textContent = 'Take a break';
+    setStatus(cameraOn ? (isRunning ? 'paused' : 'ready') : 'off');
+  }
+
+  // Auto-starts a break after 15 consecutive seconds looking up or missing
+  // from frame — fully inert whenever "manual breaks only" is on, and never
+  // fires again while already on a break. Only ever called from the running
+  // tick loop below (which already guards on `!onBreak`), so it doesn't need
+  // to re-check that here. During the final AUTO_BREAK_WARNING_LEAD seconds
+  // before it fires, shows a countdown warning next to the break counter and
+  // plays a low-volume beep once per second as a heads-up.
+  function handleAwayTick() {
+    awaySeconds += 1;
+
+    if (manualBreaksOnly) {
+      clearAutoBreakWarning();
+      return false;
+    }
+
+    const secondsUntilBreak = AUTO_BREAK_AFTER - awaySeconds;
+
+    if (secondsUntilBreak <= 0) {
+      clearAutoBreakWarning();
+      awaySeconds = 0;
+      trackedSeconds += 1;
+      startBreak(true);
+      return true;
+    }
+
+    if (secondsUntilBreak <= AUTO_BREAK_WARNING_LEAD) {
+      showAutoBreakWarning(secondsUntilBreak);
+    } else {
+      clearAutoBreakWarning();
+    }
+    return false;
+  }
+
+  // Shows/updates the countdown text next to the break counter and beeps
+  // once for each new "seconds left" value (never twice for the same second).
+  function showAutoBreakWarning(secondsLeft) {
+    autoBreakWarningEl.textContent = '⚠ Auto-break in ' + secondsLeft + 's — look down to cancel';
+    autoBreakWarningEl.classList.add('visible');
+    if (autoBreakWarningSecond !== secondsLeft) {
+      autoBreakWarningSecond = secondsLeft;
+      playWarningBeep();
+    }
+  }
+
+  function clearAutoBreakWarning() {
+    autoBreakWarningEl.classList.remove('visible');
+    autoBreakWarningEl.textContent = '';
+    autoBreakWarningSecond = null;
+  }
+
+  // Short, quiet beep for the pre-break warning — deliberately lower volume
+  // and shorter than the once-a-minute ambient break chime below.
+  function playWarningBeep() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.02, audioCtx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.18);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.18);
+    } catch (e) { /* audio unavailable, skip silently */ }
+  }
+
+  function setRunning(running) {
+    isRunning = running;
+    startPauseBtn.textContent = running ? 'Pause' : 'Start';
+    startPauseBtn.classList.toggle('is-running', running);
+    clearAutoBreakWarning(); // pausing/resuming always starts the away-timer fresh
+    if (running) {
+      awaySeconds = 0;
+      setStatus(cameraOn ? 'away' : 'off');
+    } else if (cameraOn) {
+      setStatus('ready');
+    }
+  }
+
+  async function resetAll() {
+    const ok = await showConfirm('Reset?', 'Reset studied time and break bank back to zero?');
+    if (!ok) return;
+    if (onBreak) endBreak();
+    studiedSeconds = 0;
+    bankSeconds = 0;
+    awaySeconds = 0;
+    trackedSeconds = 0;
+    totalBreakSeconds = 0;
+    clearAutoBreakWarning();
+    updateDisplays();
+    saveState();
+    setStatus(cameraOn ? (isRunning ? 'away' : 'ready') : 'off');
+  }
+
+  async function resetAllData() {
+    const ok = await showConfirm(
+      'Reset everything?',
+      'This clears studied time, break bank, calibration, sensitivity, exchange rate, and the manual-breaks setting. This can\'t be undone.'
+    );
+    if (!ok) return;
+    if (onBreak) endBreak();
+    setRunning(false);
+
+    studiedSeconds = 0;
+    bankSeconds = 0;
+    awaySeconds = 0;
+    trackedSeconds = 0;
+    totalBreakSeconds = 0;
+    clearAutoBreakWarning();
+
+    baselineRatio = null;
+    calibStatus.textContent = 'not calibrated';
+
+    sensitivity = 18;
+    sensSlider.value = '18';
+    sensValue.textContent = '18%';
+
+    ratioSlider.value = '1';
+    applyRateValue(1);
+
+    manualBreaksOnly = false;
+    manualBreaksToggle.checked = false;
+
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* storage unavailable, ignore */ }
+
+    updateDisplays();
+    saveState();
+    settingsPopover.classList.remove('open');
+
+    setStatus(cameraOn ? 'ready' : 'off');
+  }
+
+  breakBtn.addEventListener('click', () => { onBreak ? endBreak() : startBreak(false); });
+  startPauseBtn.addEventListener('click', () => setRunning(!isRunning));
+  resetBtn.addEventListener('click', resetAll);
+  resetAllBtn.addEventListener('click', resetAllData);
+  cameraBtn.addEventListener('click', toggleCamera);
+  calibBtn.addEventListener('click', runCalibration);
+  function applyRateValue(v) {
+    if (v === 0) {
+      ratio = 1;
+      ratioValue.textContent = '1s studied = 1s break';
+    } else if (v > 0) {
+      ratio = v;
+      ratioValue.textContent = '1s studied = ' + v + 's break';
+    } else {
+      ratio = 1 / (-v);
+      ratioValue.textContent = (-v) + 's studied = 1s break';
+    }
+  }
+  ratioSlider.addEventListener('input', () => { applyRateValue(parseInt(ratioSlider.value, 10)); saveState(); });
+  applyRateValue(parseInt(ratioSlider.value, 10));
+  sensSlider.addEventListener('input', () => {
+    sensitivity = parseInt(sensSlider.value, 10);
+    sensValue.textContent = sensitivity + '%';
+    saveState();
+  });
+
+  // Focus Score breakdown modal
+  let focusScoreInterval = null;
+
+  function renderFocusScore() {
+    const total = trackedSeconds;
+    const studied = studiedSeconds;
+    const onBreakNow = totalBreakSeconds;
+
+    fsTotalTime.textContent = formatTime(total);
+    fsStudiedTime.textContent = formatTime(studied);
+    fsBreakTime.textContent = formatTime(onBreakNow);
+
+    fsTotalBarValue.textContent = formatTime(total);
+    fsStudiedBarValue.textContent = formatTime(studied);
+
+    fsTotalBar.style.width = '100%';
+    const studiedPct = total > 0 ? Math.min(100, (studied / total) * 100) : 0;
+    fsStudiedBar.style.width = studiedPct + '%';
+
+    fsNote.textContent = total > 0
+      ? Math.round(studiedPct) + '% of tracked time spent studying'
+      : 'Start tracking to build up your Focus Score.';
+  }
+
+  function openFocusScore() {
+    renderFocusScore();
+    focusScoreOverlay.classList.add('open');
+    if (focusScoreInterval) clearInterval(focusScoreInterval);
+    focusScoreInterval = setInterval(renderFocusScore, 1000);
+  }
+
+  function closeFocusScore() {
+    focusScoreOverlay.classList.remove('open');
+    if (focusScoreInterval) { clearInterval(focusScoreInterval); focusScoreInterval = null; }
+  }
+
+  focusScoreBtn.addEventListener('click', (e) => { e.stopPropagation(); openFocusScore(); });
+  focusScoreCloseBtn.addEventListener('click', closeFocusScore);
+  focusScoreOverlay.addEventListener('click', (e) => { if (e.target === focusScoreOverlay) closeFocusScore(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && focusScoreOverlay.classList.contains('open')) closeFocusScore(); });
+
+  updateDisplays();
+})();
+</script>
+
+</body>
+</html>
